@@ -3,7 +3,7 @@ import { Booking } from '../models/booking.model.js';
 import { Event } from '../models/Event.js';
 import { Venue } from '../models/Venue.js';
 import { updateProfileSchema, changePasswordSchema, createBookingSchema, updateMembershipSchema, bookEventSchema } from '../validators/user.validator.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 export const getProfile = async (req, res, next) => {
     try {
