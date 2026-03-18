@@ -3,11 +3,10 @@ import nodemailer from 'nodemailer';
 const sendEmail = async (options) => {
     // Create reusable transporter object using the default SMTP transport
     const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
+        service: 'gmail',
         auth: {
             user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD
+            pass: process.env.SMTP_PASSWORD.replace(/\s+/g, '')
         }
     });
 
