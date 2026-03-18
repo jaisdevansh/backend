@@ -1,12 +1,15 @@
 {
-  "name": "backend",
+  "name": "stitch-backend",
   "version": "1.0.0",
-  "description": "Full User Section Backend",
-  "main": "server.js",
+  "description": "Production optimized backend for Stitch",
+  "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "engines": {
+    "node": "18.x"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
