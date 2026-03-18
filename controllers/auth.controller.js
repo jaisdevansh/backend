@@ -48,26 +48,20 @@ export const register = async (req, res, next) => {
 
         const message = `Welcome to Stitch! \n\nPlease click on the link below to verify your email address: \n\n ${verifyUrl} \n\n Or use this token in the app: ${verificationTokenRaw}`;
 
-        try {
-            await sendEmail({
-                email: user.email,
-                subject: 'Email Verification - Stitch Curated Discovery',
-                message
-            });
+        // Send Email asynchronously without awaiting to prevent API lag/timeout
+        sendEmail({
+            email: user.email,
+            subject: 'Email Verification - Stitch Curated Discovery',
+            message
+        }).catch(err => {
+            console.error('Background Email sending failed:', err.message);
+        });
 
-            res.status(201).json({
-                success: true,
-                message: 'User registered successfully. A verification email has been sent.',
-                data: {}
-            });
-        } catch (err) {
-            console.error('Email sending failed during registration:', err);
-            res.status(201).json({
-                success: true,
-                message: 'User registered, but email failed to send. Please request a new verification link later.',
-                data: {}
-            });
-        }
+        res.status(201).json({
+            success: true,
+            message: 'User registered successfully. A verification email is being sent.',
+            data: {}
+        });
 
     } catch (err) {
         next(err);
