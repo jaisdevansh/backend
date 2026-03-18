@@ -1,0 +1,21 @@
+{
+  "login": {
+    "success": true,
+    "message": "Login successful",
+    "data": {
+      "id": "699a245c01b88418c754ca80",
+      "name": "Test",
+      "email": "test_1771709532087@example.com",
+      "role": "user",
+      "profileImage": "",
+      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5OWEyNDVjMDFiODg0MThjNzU0Y2E4MCIsImlhdCI6MTc3MTcwOTUzNSwiZXhwIjoxNzcyMzE0MzM1fQ.JfeWPQIRh1xTwBXqFvd1PfJ9kOn0k2vc8_ajQRABiSc"
+    }
+  },
+  "refresh": {
+    "success": true,
+    "message": "Token refreshed",
+    "data": {
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5OWEyNDVjMDFiODg0MThjNzU0Y2E4MCIsInJvbGUiOiJ1c2VyIiwibmFtZSI6IlRlc3QiLCJpYXQiOjE3NzE3MDk1MzUsImV4cCI6MTc3MTcxMDQzNX0.Ugrb1IhtaHKp0SUiEJCPyGa0ezTzTTeAwpMYaYUvGK0"
+    }
+  }
+}
