@@ -23,6 +23,10 @@ import userRoutes from './routes/user.routes.js';
 import hostRoutes from './routes/host.routes.js';
 import supportRoutes from './routes/support.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
+import { errorHandler } from './middlewares/error.js';
+
 
 const app = express();
 
@@ -57,7 +61,10 @@ app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
 app.use('/host', hostRoutes);
 app.use('/support', supportRoutes);
-app.use('/ai', aiRoutes);
+app.use('/api/v1/support', aiRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+
 
 // 6. Health Check (Crucial for Cloud Deployment)
 app.get('/', (req, res) => {
