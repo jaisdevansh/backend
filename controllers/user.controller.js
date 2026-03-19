@@ -4,13 +4,18 @@ import { Event } from '../models/Event.js';
 import { Venue } from '../models/Venue.js';
 import { updateProfileSchema, changePasswordSchema, createBookingSchema, updateMembershipSchema, bookEventSchema } from '../validators/user.validator.js';
 import bcrypt from 'bcryptjs';
+import NodeCache from 'node-cache';
+
+const myCache = new NodeCache({ stdTTL: 60 }); // Cache for 60 seconds
+
 
 export const getProfile = async (req, res, next) => {
     try {
         console.time(`getProfile-${req.user.id}`);
-        const user = await User.findById(req.user.id).select('-password -refreshToken');
+        const user = await User.findById(req.user.id).select('-password -refreshToken').lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found', data: {} });
+
         }
         console.timeEnd(`getProfile-${req.user.id}`);
         res.status(200).json({ success: true, message: 'Profile fetched', data: user });
@@ -131,9 +136,11 @@ export const getMyBookings = async (req, res, next) => {
     try {
         const bookings = await Booking.find({ userId: req.user.id })
             .populate('hostId', 'name email profileImage')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
         res.status(200).json({ success: true, message: 'Bookings fetched', data: bookings });
+
     } catch (err) {
         next(err);
     }
@@ -141,9 +148,17 @@ export const getMyBookings = async (req, res, next) => {
 
 export const getAllEvents = async (req, res, next) => {
     try {
-        const events = await Event.find()
-            .populate('hostId', 'name profileImage venueProfile._id') // populate host details if needed
-            .sort({ date: 1 });
+        const cachedEvents = myCache.get('all_events');
+        if (cachedEvents) {
+            return res.status(200).json({ success: true, message: 'Events fetched (cached)', data: cachedEvents });
+        }
+
+        const events = await Event.find({ status: 'published' }) // Only fetch published events
+            .populate('hostId', 'name profileImage venueProfile._id')
+            .sort({ date: 1 })
+            .lean();
+
+        myCache.set('all_events', events);
 
         res.status(200).json({ success: true, message: 'Events fetched', data: events });
     } catch (err) {
@@ -153,15 +168,51 @@ export const getAllEvents = async (req, res, next) => {
 
 export const getAllVenues = async (req, res, next) => {
     try {
-        const venues = await Venue.find()
-            .populate('hostId', 'name profileImage') // populate host details 
-            .sort({ createdAt: -1 });
+        const cachedVenues = myCache.get('all_venues');
+        if (cachedVenues) {
+            return res.status(200).json({ success: true, message: 'Venues fetched (cached)', data: cachedVenues });
+        }
+
+        const venues = await Venue.find({ status: 'active' }) // Only fetch active venues
+            .populate('hostId', 'name profileImage')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        myCache.set('all_venues', venues);
 
         res.status(200).json({ success: true, message: 'Venues fetched', data: venues });
     } catch (err) {
         next(err);
     }
 };
+
+export const getEventById = async (req, res, next) => {
+    try {
+        const event = await Event.findById(req.params.id)
+            .populate('hostId', 'name profileImage venueProfile._id')
+            .lean();
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+        res.status(200).json({ success: true, data: event });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getVenueById = async (req, res, next) => {
+    try {
+        const venue = await Venue.findById(req.params.id)
+            .populate('hostId', 'name profileImage')
+            .lean();
+        if (!venue) return res.status(404).json({ success: false, message: 'Venue not found' });
+
+        res.status(200).json({ success: true, data: venue });
+    } catch (err) {
+        next(err);
+    }
+};
+
+
 
 export const bookEvent = async (req, res, next) => {
     try {
@@ -235,9 +286,10 @@ export const getBookedTables = async (req, res, next) => {
             eventId,
             status: { $in: ['pending', 'approved', 'active'] },
             tableId: { $exists: true, $ne: null }
-        }).select('tableId');
+        }).select('tableId').lean();
 
         const bookedTableIds = bookings.map(b => b.tableId);
+
 
         res.status(200).json({ success: true, message: 'Booked tables fetched', data: bookedTableIds });
     } catch (err) {

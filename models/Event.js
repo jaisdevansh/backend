@@ -22,5 +22,7 @@ const eventSchema = new mongoose.Schema({
 // Compound indexes for fast querying
 eventSchema.index({ hostId: 1, createdAt: -1 });
 eventSchema.index({ hostId: 1, status: 1 });
+eventSchema.index({ status: 1, date: 1 });
+
 
 export const Event = mongoose.model('Event', eventSchema);

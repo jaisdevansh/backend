@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
+import compression from 'compression';
+
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
@@ -26,7 +28,9 @@ const app = express();
 
 // 1. Security Middlewares
 app.use(helmet());
+app.use(compression());
 app.use(cors({ origin: "*" })); // Fix for frontend connection
+
 
 // 2. Rate Limiting
 const limiter = rateLimit({
@@ -97,7 +101,9 @@ const startServer = async () => {
         }
 
         await mongoose.connect(MONGO_URI, {
-            serverSelectionTimeoutMS: 10000, // Timeout after 10s instead of default
+            serverSelectionTimeoutMS: 5000, 
+            socketTimeoutMS: 45000,
+            maxPoolSize: 50, // Optimize for Cloud Deployments
         });
         
         console.log('✔ MongoDB Atlas connected successfully');
@@ -116,3 +122,5 @@ const startServer = async () => {
 startServer();
 
 export default app;
+
+

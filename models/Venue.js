@@ -6,6 +6,10 @@ const venueSchema = new mongoose.Schema({
     venueType: { type: String, default: 'Nightclub' },
     description: { type: String },
     address: { type: String, required: true },
+    coordinates: {
+        lat: { type: Number },
+        long: { type: Number }
+    },
     capacity: { type: Number, required: true, default: 0 },
     openingTime: { type: String, default: '10:00 PM' },
     closingTime: { type: String, default: '04:00 AM' },
@@ -22,4 +26,7 @@ const venueSchema = new mongoose.Schema({
     status: { type: String, enum: ['active', 'pending_verification'], default: 'pending_verification' }
 }, { timestamps: true });
 
+venueSchema.index({ status: 1, venueType: 1 });
+
 export const Venue = mongoose.model('Venue', venueSchema);
+

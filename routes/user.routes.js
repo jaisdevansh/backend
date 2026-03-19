@@ -1,5 +1,6 @@
 import express from 'express';
-import { getProfile, updateProfile, changePassword, createBooking, getMyBookings, updateMembership, getAllEvents, bookEvent, getBookedTables, getAllVenues } from '../controllers/user.controller.js';
+import { getProfile, updateProfile, changePassword, createBooking, getMyBookings, updateMembership, getAllEvents, getEventById, bookEvent, getBookedTables, getAllVenues, getVenueById } from '../controllers/user.controller.js';
+
 import { protect } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 
@@ -22,10 +23,14 @@ router.get('/bookings', getMyBookings); // Optionally restrict by 'user' if only
 
 // Events
 router.get('/events', getAllEvents);
+router.get('/events/:id', getEventById);
+
 router.post('/events/book', authorize('user'), bookEvent);
 router.get('/events/:eventId/booked-tables', getBookedTables);
 
 // Venues
 router.get('/venues', getAllVenues);
+router.get('/venues/:id', getVenueById);
+
 
 export default router;

@@ -39,8 +39,10 @@ export const updateVenueProfile = async (req, res, next) => {
             closingTime,
             rules,
             heroImage,
-            images
+            images,
+            coordinates
         } = req.body;
+
 
         const venue = await Venue.findOneAndUpdate(
             { hostId: req.user.id },
@@ -55,8 +57,10 @@ export const updateVenueProfile = async (req, res, next) => {
                 rules,
                 heroImage,
                 images,
+                coordinates,
                 hostId: req.user.id
             },
+
             { new: true, upsert: true, runValidators: true }
         );
 
