@@ -389,9 +389,32 @@ export const getSplitRequests = async (req, res, next) => {
 
 export const respondSplitRequest = async (req, res, next) => {
     try {
-        const { requestId, action } = req.body; // action: accept or reject
+        const { requestId, action } = req.body; 
         if (!action) return res.status(400).json({ success: false, message: 'Action missing' });
         res.status(200).json({ success: true, message: `Split request ${action}ed successfully.` });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const submitIncidentReport = async (req, res, next) => {
+    try {
+        const { incidentType, description, venueId, evidenceImages } = req.body;
+        
+        if (!incidentType || !description) {
+            return res.status(400).json({ success: false, message: 'Incident type and description are required' });
+        }
+        
+        const { IncidentReport } = await import('../models/IncidentReport.js');
+        const report = await IncidentReport.create({
+            userId: req.user.id,
+            venueId: venueId || null,
+            incidentType,
+            description,
+            evidenceImages: evidenceImages || []
+        });
+        
+        res.status(201).json({ success: true, message: 'Incident reported successfully. Support team has been notified.', data: report });
     } catch (err) {
         next(err);
     }

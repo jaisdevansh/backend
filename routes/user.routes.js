@@ -33,9 +33,10 @@ router.get('/venues', getAllVenues);
 router.get('/venues/:id', getVenueById);
 
 // Feedback & Ratings
-import { submitAppRating, getReferralData, applyReferralCode, sendSplitRequest, getSplitRequests, respondSplitRequest } from '../controllers/user.controller.js';
+import { submitAppRating, getReferralData, applyReferralCode, sendSplitRequest, getSplitRequests, respondSplitRequest, submitIncidentReport } from '../controllers/user.controller.js';
 
 router.post('/rate', submitAppRating);
+router.post('/incident-report', submitIncidentReport);
 
 // Referrals
 router.get('/referral', getReferralData);
