@@ -32,5 +32,18 @@ router.get('/events/:eventId/booked-tables', getBookedTables);
 router.get('/venues', getAllVenues);
 router.get('/venues/:id', getVenueById);
 
+// Feedback & Ratings
+import { submitAppRating, getReferralData, applyReferralCode, sendSplitRequest, getSplitRequests, respondSplitRequest } from '../controllers/user.controller.js';
+
+router.post('/rate', submitAppRating);
+
+// Referrals
+router.get('/referral', getReferralData);
+router.post('/referral/apply', applyReferralCode);
+
+// Split Payments
+router.post('/split-requests', sendSplitRequest);
+router.get('/split-requests', getSplitRequests);
+router.put('/split-requests', respondSplitRequest);
 
 export default router;

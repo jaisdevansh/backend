@@ -290,8 +290,108 @@ export const getBookedTables = async (req, res, next) => {
 
         const bookedTableIds = bookings.map(b => b.tableId);
 
-
         res.status(200).json({ success: true, message: 'Booked tables fetched', data: bookedTableIds });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Rating
+export const submitAppRating = async (req, res, next) => {
+    try {
+        const { stars, feedback } = req.body;
+        if (!stars || stars < 1 || stars > 5) {
+            return res.status(400).json({ success: false, message: 'Invalid star rating format' });
+        }
+        const { AppRating } = await import('../models/AppRating.js');
+        const rating = await AppRating.create({
+            userId: req.user.id,
+            stars,
+            feedback
+        });
+        res.status(201).json({ success: true, message: 'Thank you for your feedback!' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Referral System
+export const getReferralData = async (req, res, next) => {
+    try {
+        let user = await User.findById(req.user.id).select('referralCode loyaltyPoints referralsCount');
+        if (!user.referralCode) {
+            user.referralCode = Math.random().toString(36).substring(2, 8).toUpperCase() + user._id.toString().substring(18, 22).toUpperCase();
+            await user.save();
+        }
+        res.status(200).json({ success: true, data: user });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const applyReferralCode = async (req, res, next) => {
+    try {
+        const { code } = req.body;
+        if (!code) return res.status(400).json({ success: false, message: 'Please provide a valid code' });
+
+        const user = await User.findById(req.user.id);
+        if (user.referredBy) {
+            return res.status(400).json({ success: false, message: 'You have already used a referral code.' });
+        }
+        if (user.referralCode === code) {
+            return res.status(400).json({ success: false, message: 'You cannot use your own referral code.' });
+        }
+
+        const referrer = await User.findOne({ referralCode: code });
+        if (!referrer) {
+            return res.status(404).json({ success: false, message: 'Invalid referral code.' });
+        }
+
+        user.referredBy = referrer._id;
+        user.loyaltyPoints += 50; 
+        await user.save();
+
+        referrer.referralsCount += 1;
+        referrer.loyaltyPoints += 100;
+        await referrer.save();
+
+        res.status(200).json({ success: true, message: 'Code applied! You earned 50 points.', data: user });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Split Payments
+export const sendSplitRequest = async (req, res, next) => {
+    try {
+        const { targetUserPhone, amount, purpose } = req.body;
+        if (!targetUserPhone || !amount) {
+            return res.status(400).json({ success: false, message: 'Target user and amount required to split.' });
+        }
+        // In a real app we would create a SplitRequest model
+        res.status(200).json({ success: true, message: 'Split request sent successfully!' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getSplitRequests = async (req, res, next) => {
+    try {
+        // Return dummy pending split requests mocking actual data
+        const dummySplits = [
+            { id: '1', requester: 'Alex', amount: 450, purpose: 'VIP Table at Neon', status: 'pending', date: new Date() }
+        ];
+        res.status(200).json({ success: true, data: dummySplits });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const respondSplitRequest = async (req, res, next) => {
+    try {
+        const { requestId, action } = req.body; // action: accept or reject
+        if (!action) return res.status(400).json({ success: false, message: 'Action missing' });
+        res.status(200).json({ success: true, message: `Split request ${action}ed successfully.` });
     } catch (err) {
         next(err);
     }
