@@ -33,7 +33,7 @@ export const register = async (req, res, next) => {
             .update(verificationTokenRaw)
             .digest('hex');
 
-        user = await User.create({
+        user = new User({
             name: value.name,
             email: value.email,
             password: value.password,
@@ -43,6 +43,9 @@ export const register = async (req, res, next) => {
             verificationToken: verificationTokenHashed,
             verificationTokenExpire: Date.now() + 24 * 60 * 60 * 1000 // 24 hours expiry
         });
+
+        user.referralCode = Math.random().toString(36).substring(2, 8).toUpperCase() + user._id.toString().substring(18, 22).toUpperCase();
+        await user.save();
 
         const verifyUrl = `${req.protocol}://${req.get('host')}/auth/verifyemail/${verificationTokenRaw}`;
 

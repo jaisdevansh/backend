@@ -12,11 +12,17 @@ const myCache = new NodeCache({ stdTTL: 60 }); // Cache for 60 seconds
 export const getProfile = async (req, res, next) => {
     try {
         console.time(`getProfile-${req.user.id}`);
-        const user = await User.findById(req.user.id).select('-password -refreshToken').lean();
+        let user = await User.findById(req.user.id).select('-password -refreshToken').lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found', data: {} });
-
         }
+
+        if (!user.referralCode) {
+            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase() + user._id.toString().substring(18, 22).toUpperCase();
+            await User.updateOne({ _id: user._id }, { $set: { referralCode: newCode } });
+            user.referralCode = newCode;
+        }
+
         console.timeEnd(`getProfile-${req.user.id}`);
         res.status(200).json({ success: true, message: 'Profile fetched', data: user });
     } catch (err) {
@@ -320,8 +326,9 @@ export const getReferralData = async (req, res, next) => {
     try {
         let user = await User.findById(req.user.id).select('referralCode loyaltyPoints referralsCount');
         if (!user.referralCode) {
-            user.referralCode = Math.random().toString(36).substring(2, 8).toUpperCase() + user._id.toString().substring(18, 22).toUpperCase();
-            await user.save();
+            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase() + user._id.toString().substring(18, 22).toUpperCase();
+            await User.updateOne({ _id: user._id }, { $set: { referralCode: newCode } });
+            user.referralCode = newCode;
         }
         res.status(200).json({ success: true, data: user });
     } catch (err) {
