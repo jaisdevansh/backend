@@ -4,6 +4,7 @@ export const createEventSchema = Joi.object({
     title: Joi.string().min(3).max(100).required(),
     date: Joi.string().required(), // accepting any string that can be parsed into a date
     startTime: Joi.string().required(),
+    description: Joi.string().allow('', null).optional(),
     coverImage: Joi.string().uri().optional(),
     tickets: Joi.array().items(
         Joi.object({
