@@ -90,10 +90,17 @@ export const sendOtp = async (req, res, next) => {
 
         // STAGE 1: HYPER-FAST UI DISCHARGE
         // We return success to the user instantly. OTP arrival happens in the background.
+        const message = isEmail 
+            ? 'OTP sequence initiated' 
+            : 'Demo Access: Use 123456 as your code';
+
         res.status(200).json({ 
             success: true, 
-            message: 'OTP sequence initiated', 
-            data: { type: isEmail ? 'email' : 'phone', hint: !isEmail ? 'Use 123456' : undefined } 
+            message: message, 
+            data: { 
+                type: isEmail ? 'email' : 'phone', 
+                hint: !isEmail ? '123456' : undefined 
+            } 
         });
 
         // STAGE 2: ATOMIC BACKGROUND PERSISTENCE & DISPATCH
@@ -105,6 +112,7 @@ export const sendOtp = async (req, res, next) => {
                     { otp: otpCode, createdAt: new Date() }, 
                     { upsert: true, new: true, setDefaultsOnInsert: true }
                 );
+                console.log(`[AUTH] Background OTP saved for ${identifier}: ${otpCode}`);
 
                 if (isEmail) {
                     const message = `Your Entry Club one-time password is: ${otpCode}. It will expire in 5 minutes.`;
@@ -112,7 +120,8 @@ export const sendOtp = async (req, res, next) => {
                         email: identifier,
                         subject: 'Your Login OTP - Entry Club',
                         message
-                    }).catch(err => console.error('[AUTH] Background OTP Email failed:', err.message));
+                    }).then(() => console.log(`[AUTH] OTP Email sent successfully to ${identifier}`))
+                      .catch(err => console.error('[AUTH] Background OTP Email failed:', err.message));
                 }
             } catch (err) {
                 console.error('[AUTH] Background OTP persistence failed:', err.message);
