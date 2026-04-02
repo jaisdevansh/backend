@@ -7,7 +7,10 @@ const sendEmail = async (options) => {
         auth: {
             user: process.env.SMTP_EMAIL,
             pass: process.env.SMTP_PASSWORD.replace(/\s+/g, '')
-        }
+        },
+        connectionTimeout: 10000, // 10 seconds timeout
+        greetingTimeout: 10000,
+        socketTimeout: 15000
     });
 
     // send mail with defined transport object
