@@ -46,6 +46,9 @@ import { errorHandler } from './middleware/error.js';
 
 const app = express();
 
+// 0. Trust Proxy (Vital for Railway/Heroku/Nginx)
+app.set('trust proxy', 1);
+
 // 1. Security Middlewares
 app.use(helmet());
 app.use(compression());
