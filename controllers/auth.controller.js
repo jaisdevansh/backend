@@ -152,10 +152,11 @@ export const verifyOtp = async (req, res, next) => {
         if (!verified) {
             const currentOtp = await Otp.findOne({ identifier, otp });
             
-            // 🛠️ DEV BYPASS: Allow 123456 for all identifiers in non-production
-            const isDev = process.env.NODE_ENV !== 'production' || identifier.endsWith('@test.com');
+            // 🛠️ DEV BYPASS: Allow 123456 for all identifiers in non-production, only for test identifiers in production
+            const isTest = identifier.endsWith('@test.com') || identifier === '1234567890';
+            const isDev = process.env.NODE_ENV !== 'production';
             
-            if (currentOtp || (isDev && otp === '123456')) {
+            if (currentOtp || ((isDev || isTest) && otp === '123456')) {
                 verified = true;
                 if (currentOtp) {
                     Otp.deleteOne({ _id: currentOtp._id }).catch(e => console.error('OTP Burn Error:', e.message));
