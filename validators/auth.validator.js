@@ -8,7 +8,7 @@ export const registerSchema = Joi.object({
 });
 
 export const loginSchema = Joi.object({
-    email: Joi.string().email().required(),
+    identifier: Joi.string().required(),
     password: Joi.string().required()
 });
 
@@ -23,4 +23,14 @@ export const forgotPasswordSchema = Joi.object({
 export const resetPasswordSchema = Joi.object({
     resetToken: Joi.string().required(),
     newPassword: Joi.string().min(6).required()
+});
+
+export const sendOtpSchema = Joi.object({
+    identifier: Joi.string().required()
+});
+
+export const verifyOtpSchema = Joi.object({
+    identifier: Joi.string().required(),
+    otp: Joi.string().length(6).required(),
+    idToken: Joi.string().optional() // For Firebase alternative
 });

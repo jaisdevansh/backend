@@ -32,4 +32,8 @@ const ticketSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+// Fast lookup for host's support tickets list + status filter
+ticketSchema.index({ hostId: 1, status: 1 });
+ticketSchema.index({ hostId: 1, createdAt: -1 });
+
 export const Ticket = mongoose.model('Ticket', ticketSchema);

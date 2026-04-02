@@ -1,10 +1,10 @@
 import Joi from 'joi';
 
 export const updateVenueSchema = Joi.object({
-    name: Joi.string().min(2).max(100).required(),
+    name: Joi.string().min(2).max(100).allow('').optional(),
     venueType: Joi.string().allow('', null).optional(),
     description: Joi.string().allow('', null).optional(),
-    address: Joi.string().min(5).required(),
+    address: Joi.string().min(5).allow('').optional(),
     capacity: Joi.alternatives().try(Joi.number(), Joi.string()).optional(),
     openingTime: Joi.string().allow('', null).optional(),
     closingTime: Joi.string().allow('', null).optional(),

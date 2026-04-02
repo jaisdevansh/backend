@@ -1,19 +1,38 @@
+import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
-import sendEmail from './utils/sendEmail.js';
 
-const test = async () => {
+const testEmail = async () => {
     try {
-        console.log('Sending test email to:', process.env.SMTP_EMAIL);
-        await sendEmail({
-            email: process.env.SMTP_EMAIL,
-            subject: 'Test Email',
-            message: 'This is a test email.'
-        });
-        console.log('Success!');
-    } catch (e) {
-        console.error('Failed:', e);
-    }
-}
+        console.log('Testing SMTP connection...');
+        console.log('Email:', process.env.SMTP_EMAIL);
+        
+        let pass = process.env.SMTP_PASSWORD;
+        if(pass) pass = pass.replace(/\s+/g, '');
+        console.log('Password Length:', pass?.length);
 
-test();
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.SMTP_EMAIL,
+                pass: pass
+            }
+        });
+
+        await transporter.verify();
+        console.log('✅ SMTP Connection Successful!');
+        
+        const info = await transporter.sendMail({
+            from: process.env.FROM_EMAIL,
+            to: process.env.SMTP_EMAIL, // Send to self
+            subject: 'Test Email from Entry Club',
+            text: 'If you are reading this, nodemailer is working!'
+        });
+        
+        console.log('✅ Test email sent:', info.messageId);
+    } catch (error) {
+        console.error('❌ SMTP Error:', error.message);
+    }
+};
+
+testEmail();

@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SupportMessage } from "../models/support.model.js";
 import Joi from 'joi';
+import { cacheService } from '../services/cache.service.js';
 
 // Validation Schema
 export const askSupportSchema = Joi.object({
@@ -23,6 +24,9 @@ export const askSupport = async (req, res, next) => {
             content: message,
             role: 'user'
         });
+        
+        // Invalidate cache on new message
+        await cacheService.del(cacheService.formatKey('support', userId));
 
         // 2. Initialize Gemini
         if (!process.env.GEMINI_API_KEY) {
@@ -30,13 +34,15 @@ export const askSupport = async (req, res, next) => {
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 
-        // 3. Fetch recent history for context (optional but better)
+        // 3. Fetch recent history for context (only fields needed by Gemini)
         const history = await SupportMessage.find({ userId })
+            .select('role content createdAt')
             .sort({ createdAt: -1 })
-            .limit(10);
+            .limit(10)
+            .lean();
 
         const context = history.reverse().map(m => ({
             role: m.role === 'ai' ? 'model' : 'user',
@@ -48,11 +54,11 @@ export const askSupport = async (req, res, next) => {
             history: [
                 {
                     role: "user",
-                    parts: [{ text: "You are 'Party Support AI', a premium concierge assistant for 'The Party App'. The Party App helps users find exclusive events, nightclubs, and VIP lounges. Be polite, professional, and helpful. Keep responses concise and focused on support. If a user asks about memberships, mention Essential, Gold, and Black tiers. If they ask about booking, guide them to the booking section." }],
+                    parts: [{ text: "You are the 'Entry Club Concierge', an elite AI assistant for 'Entry Club'. Entry Club helps members discover exclusive events, premium venues, and luxury nightlife experiences. Your tone must be sophisticated, helpful, and exclusive. Keep responses concise. If a user asks about memberships, mention Essential, Gold, and Black tiers. If they ask about booking or entry status, guide them to their dashboard or the specific venue page." }],
                 },
                 {
                     role: "model",
-                    parts: [{ text: "Understood. I am Party Support AI, ready to assist our premium members with their curated discovery experience on The Party App." }],
+                    parts: [{ text: "Welcome to Entry Club. I am your personal concierge, dedicated to elevating your experience. How may I assist you this evening?" }],
                 },
                 ...context.slice(0, -1) // All except the latest one which we just added
             ],
@@ -67,7 +73,7 @@ export const askSupport = async (req, res, next) => {
             content: aiResponseText,
             role: 'ai',
             metadata: {
-                model: "gemini-1.5-flash"
+                model: "gemini-2.5-flash"
             }
         });
 
@@ -85,6 +91,19 @@ export const askSupport = async (req, res, next) => {
         console.error("================ Gemini Error ================");
         console.error(err);
         console.error("==============================================");
+        
+        // GRACEFUL FALLBACK FOR LOCAL DEV NETWORK BLOCKING
+        if (err.message && err.message.includes('fetch failed')) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    message: "I am experiencing network connectivity issues at the moment (Local ISP/DNS block). Please try again later.",
+                    historyId: "fallback_sys_error",
+                    userMessageId: "fallback_sys_usr"
+                }
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: "AI Support failed to respond",
@@ -95,9 +114,13 @@ export const askSupport = async (req, res, next) => {
 
 export const getSupportChat = async (req, res, next) => {
     try {
-        const messages = await SupportMessage.find({ userId: req.user.id })
-            .sort({ createdAt: 1 })
-            .limit(50);
+        const cacheKey = cacheService.formatKey('support', req.user.id);
+        const messages = await cacheService.wrap(cacheKey, 30, async () => {
+             return await SupportMessage.find({ userId: req.user.id })
+                .sort({ createdAt: 1 })
+                .limit(50)
+                .lean();
+        });
 
         res.status(200).json({
             success: true,
@@ -137,4 +160,73 @@ export const deleteSupportMessage = async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+};
+
+// --- TECHNICAL TRIAGE & BUG REPORTING ---
+export const submitBugReport = async (req, res, next) => {
+    try {
+        const { description, images, metadata } = req.body;
+        const { User } = await import('../models/user.model.js');
+        const user = await User.findById(req.user.id).select('name email username profileImage').lean();
+
+        let uploadedUrls = [];
+        if (images && images.length > 0) {
+            try {
+                const { uploadToCloudinary } = await import('../config/cloudinary.config.js');
+                uploadedUrls = await Promise.all(images.map(img => uploadToCloudinary(img, 'entry-club/bugs')));
+            } catch (cloudErr) { console.error('[Cloudinary] Upload Fail:', cloudErr.message); }
+        }
+
+        const transporter = (await import('nodemailer')).default.createTransport({
+            service: 'gmail',
+            auth: { user: process.env.EMAIL_USER || 'stitchapp.support@gmail.com', pass: process.env.EMAIL_PASS }
+        });
+
+        const html = `
+            <h2>Bug Report</h2>
+            <p><b>Reporter:</b> ${user?.name} (@${user?.username})</p>
+            <p><b>OS:</b> ${metadata?.os} (${metadata?.osVersion})</p>
+            <hr/>
+            <p>${description}</p>
+            ${uploadedUrls.length > 0 ? uploadedUrls.map(url => `<img src="${url}" width="200" style="margin: 5px;"/>`).join('') : ''}
+        `;
+
+        transporter.sendMail({
+            from: `"STITCH Triage" <${process.env.EMAIL_USER || 'stitchapp.support@gmail.com'}>`,
+            to: 'devanshjais20@gmail.com',
+            subject: `🐞 BUG: ${description.substring(0, 40)}`,
+            html
+        }).catch(e => console.error('[Nodemailer] Dispatch Fail:', e.message));
+
+        res.status(200).json({ success: true, message: 'Bug report dispatched to dev' });
+    } catch (err) { next(err); }
+};
+
+export const submitSupportRequest = async (req, res, next) => {
+    try {
+        const { name, message } = req.body;
+        const { User } = await import('../models/user.model.js');
+        const user = await User.findById(req.user.id).select('email username').lean();
+
+        const transporter = (await import('nodemailer')).default.createTransport({
+            service: 'gmail',
+            auth: { user: process.env.EMAIL_USER || 'stitchapp.support@gmail.com', pass: process.env.EMAIL_PASS }
+        });
+
+        const html = `
+            <h2>New Support Request</h2>
+            <p><b>From:</b> ${name} (${user?.email})</p>
+            <p><b>Message:</b></p>
+            <p>${message}</p>
+        `;
+
+        transporter.sendMail({
+            from: `"STITCH Support" <${process.env.EMAIL_USER || 'stitchapp.support@gmail.com'}>`,
+            to: 'devanshjais20@gmail.com',
+            subject: `🎫 Support Ticket: ${name}`,
+            html: html
+        }).catch(e => console.error('[Nodemailer][Support] Dispatch Fail:', e.message));
+
+        res.status(200).json({ success: true, message: 'Support request sent to dev' });
+    } catch (err) { next(err); }
 };

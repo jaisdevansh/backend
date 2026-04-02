@@ -2,24 +2,27 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    phone: { type: String, required: true },
-    role: { type: String, enum: ['user', 'host', 'admin', 'superadmin'], default: 'user' },
-    membership: {
-        tier: { type: String, enum: ['Essential', 'Gold', 'Black'], default: 'Essential' },
-        status: { type: String, enum: ['active', 'expired', 'canceled'], default: 'active' },
-        expiryDate: { type: Date }
-    },
+    name: { type: String, default: 'Club Member' },
+    gender: { type: String, enum: ['Male', 'Female', 'Other', ''], default: '' },
+    email: { type: String, unique: true, sparse: true },
+    password: { type: String },
+    phone: { type: String, unique: true, sparse: true },
+    role: { type: String, enum: ['user', 'host', 'admin', 'superadmin', 'staff', 'waiter', 'security'], default: 'user' },
+    hostId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // for staff to link to their host
+    preferredZone: { type: String }, // for staff zone preference
+    onboardingCompleted: { type: Boolean, default: false },
     emailVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     profileImage: { type: String, default: '' },
+    dob: { type: Date },
+    location: { type: String, default: '' },
+    username: { type: String, unique: true, sparse: true },
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     referralsCount: { type: Number, default: 0 },
     loyaltyPoints: { type: Number, default: 0 },
     refreshToken: { type: String, default: null },
+    expoPushToken: { type: String, default: null },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },
     verificationToken: { type: String },
@@ -44,5 +47,13 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// High performance indexes
+userSchema.index({ role: 1 });
+userSchema.index({ isActive: 1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ onboardingCompleted: 1 });
+userSchema.index({ hostId: 1, role: 1 });
+userSchema.index({ isActive: 1, role: 1 }); // Composed for Admin Filtering
 
 export const User = mongoose.model('User', userSchema);

@@ -7,8 +7,12 @@ const bookingSchema = new mongoose.Schema({
 
     // Event specific fields
     eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
+    floorId: { type: mongoose.Schema.Types.ObjectId },
     ticketType: { type: String },
     tableId: { type: String },
+    seatIds: [{ type: String }],
+    guests: { type: Number, default: 1 },
+    guestsEntered: { type: Number, default: 0 },
     pricePaid: { type: Number },
     qrPayload: { type: String, sparse: true },
     checkInTime: { type: Date },
@@ -21,6 +25,7 @@ bookingSchema.index({ userId: 1, createdAt: -1 });
 bookingSchema.index({ hostId: 1, createdAt: -1 });
 bookingSchema.index({ eventId: 1, status: 1 });
 bookingSchema.index({ eventId: 1, tableId: 1 });
+bookingSchema.index({ eventId: 1, seatIds: 1 });
 
 
 export const Booking = mongoose.model('Booking', bookingSchema);

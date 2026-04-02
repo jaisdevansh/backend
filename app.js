@@ -12,6 +12,8 @@ import dotenv from 'dotenv';
 // Load Environment Variables
 dotenv.config();
 
+import { logger } from './logs/logger.js';
+
 // Basic Error Check for Vital Variables if in Production
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const MONGO_URI = process.env.MONGO_URI;
@@ -25,7 +27,21 @@ import supportRoutes from './routes/support.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
-import { errorHandler } from './middlewares/error.js';
+import discoveryRoutes from './routes/discovery.routes.js';
+import adminChatRoutes from './routes/adminChat.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import drinkRequestRoutes from './routes/drinkRequest.routes.js';
+import radarRoutes from './routes/radar.routes.js';
+import staffRoutes from './routes/staff.routes.js';
+import waiterRoutes from './routes/waiter.routes.js';
+import securityRoutes from './routes/security.routes.js';
+import floorRoutes from './routes/floor.routes.js';
+import analyticsRoutes from './routes/analytics.routes.js';
+import chatRoutes from './routes/chat.routes.js';
+import walletRoutes from './routes/wallet.routes.js';
+import couponRoutes from './routes/coupon.routes.js';
+import referralRewardRoutes from './routes/referralReward.routes.js';
+import { errorHandler } from './middleware/error.js';
 
 
 const app = express();
@@ -45,8 +61,8 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // 3. Core Middlewares
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 
 // 4. Logging (Optimized for Production)
@@ -64,7 +80,23 @@ app.use('/support', supportRoutes);
 app.use('/api/v1/support', aiRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/discovery', discoveryRoutes);
+app.use('/admin-chat', adminChatRoutes);
+app.use('/admin', adminRoutes);
+app.use('/api/v1/drink-requests', drinkRequestRoutes);
+app.use('/api/v1/radar', radarRoutes);
+app.use('/api/v1/staff', staffRoutes);
+app.use('/api/v1/waiter', waiterRoutes);
+app.use('/api/v1/security', securityRoutes);
+app.use('/api/v1/floors', floorRoutes);
+app.use('/api/v1/chat', chatRoutes);
+app.use('/analytics', analyticsRoutes);
 
+// New Economics APIs
+app.use('/api/v1/wallet', walletRoutes);
+app.use('/api/v1/coupons', couponRoutes);
+app.use('/api/v1/referral', referralRewardRoutes);
+app.use('/invite', referralRewardRoutes); // Public Landing Page Route
 
 // 6. Health Check (Crucial for Cloud Deployment)
 app.get('/', (req, res) => {
@@ -81,29 +113,17 @@ app.use((req, res) => {
 });
 
 // 8. Global Error Handler Middleware
-app.use((err, req, res, next) => {
-    const statusCode = err.statusCode || 500;
-    const message = err.message || 'Internal Server Error';
-
-    // Log error for debugging in non-production
-    if (NODE_ENV !== 'production') {
-        console.error(`[ERROR] ${err.stack}`);
-    } else {
-        console.error(`[ERROR] ${message}`);
-    }
-
-    res.status(statusCode).json({
-        success: false,
-        message: NODE_ENV === 'production' ? message : err.stack,
-        data: {}
-    });
-});
+app.use(errorHandler);
 
 // 9. Database Connection & Server Startup
+import { initSocket } from './socket.js';
+import { initLocationRevealService } from './services/locationReveal.service.js';
+import { initIssueEscalationService } from './services/issueEscalation.service.js';
+
 const startServer = async () => {
     try {
         if (!MONGO_URI) {
-            console.error('✘ MONGO_URI is missing. Please check your environment variables.');
+            logger.error('✘ MONGO_URI is missing. Please check your environment variables.');
             process.exit(1);
         }
 
@@ -113,14 +133,24 @@ const startServer = async () => {
             maxPoolSize: 50, // Optimize for Cloud Deployments
         });
         
-        console.log('✔ MongoDB Atlas connected successfully');
+        logger.info('✔ MongoDB Atlas connected successfully');
 
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log(`🚀 Server started on port ${PORT}`);
-            console.log(`🌍 Environment: ${NODE_ENV}`);
+        const server = app.listen(PORT, '0.0.0.0', () => {
+            logger.info(`🚀 Server started on port ${PORT} | Environment: ${NODE_ENV}`);
         });
+
+        // Optimize TCP connections for high-performance keep-alive and cloud load balancers
+        server.keepAliveTimeout = 65000; 
+        server.headersTimeout = 66000;
+
+        initSocket(server);
+        logger.info('🔌 Socket.io Layer initialized successfully');
+        
+        // Start Background Jobs
+        initLocationRevealService();
+        initIssueEscalationService();
     } catch (error) {
-        console.error('✘ Failed to connect to MongoDB:', error.message);
+        logger.error(`✘ Failed to connect to MongoDB: ${error.message}`);
         // Fail gracefully for Cloud deployment requirements
         process.exit(1);
     }

@@ -5,30 +5,34 @@ export const getDashboardSummary = async (req, res, next) => {
     const hostId = req.user.id;
 
     try {
-        const events = await Event.find({ hostId }).sort({ createdAt: -1 });
-        const bookings = await Booking.find({ hostId });
+        // [SCALABLE] Query DB explicitly for what's needed, preventing memory overflow
+        const [totalBookings, eventsStats, upcomingEvents] = await Promise.all([
+            Booking.countDocuments({ hostId }),
+            
+            // Calculate capacity across events without loading full documents
+            Event.aggregate([
+                { $match: { hostId: hostId, status: { $ne: 'cancelled' } } },
+                { $unwind: "$tickets" },
+                { $group: {
+                    _id: null,
+                    totalCapacity: { $sum: "$tickets.capacity" },
+                    totalSold: { $sum: "$tickets.sold" }
+                }}
+            ]),
 
-        const upcomingEvents = events.filter(e => new Date(e.date) >= new Date()).slice(0, 5);
-        const totalBookings = bookings.length;
+            Event.find({ hostId, date: { $gte: new Date() } })
+                 .sort({ date: 1 }) // Closest upcoming first
+                 .limit(5)
+                 .select('title date status coverImage attendeeCount')
+                 .lean()
+        ]);
 
-        // Calculate actual Capacity Usage
-        let totalCapacity = 0;
-        let totalSold = 0;
-
-        events.forEach(event => {
-            if (event.status !== 'cancelled') {
-                event.tickets.forEach(ticket => {
-                    totalCapacity += ticket.capacity || 0;
-                    totalSold += ticket.sold || 0;
-                });
-            }
-        });
-
-        const capacityUsage = totalCapacity > 0
-            ? Math.round((totalSold / totalCapacity) * 100) + '%'
+        const capacityData = eventsStats[0] || { totalCapacity: 0, totalSold: 0 };
+        const capacityUsage = capacityData.totalCapacity > 0
+            ? Math.round((capacityData.totalSold / capacityData.totalCapacity) * 100) + '%'
             : '0%';
 
-        const responseData = {
+        res.status(200).json({
             success: true,
             stats: {
                 totalBookings,
@@ -36,9 +40,7 @@ export const getDashboardSummary = async (req, res, next) => {
                 capacityUsage
             },
             upcomingEvents
-        };
-
-        res.status(200).json(responseData);
+        });
     } catch (error) {
         next(error);
     }

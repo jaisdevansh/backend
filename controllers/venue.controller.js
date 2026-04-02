@@ -1,4 +1,37 @@
 import { Venue } from '../models/Venue.js';
+import { Media } from '../models/Media.js';
+import { cacheService } from '../services/cache.service.js';
+
+export const getAllVenues = async (req, res, next) => {
+    try {
+        const cacheKey = 'venues_all_guest';
+        const venues = await cacheService.wrap(cacheKey, 300, async () => {
+            return await Venue.find()
+                .select('name heroImage venueType address openingTime description images')
+                .lean();
+        });
+        res.status(200).json({ success: true, data: venues });
+    } catch (err) { next(err); }
+};
+
+export const getVenueById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const venue = await Venue.findById(id).lean();
+        if (!venue) return res.status(404).json({ success: false, message: 'Venue not found' });
+
+        // Fetch approved media from this host (photos/videos for the gallery)
+        const media = await Media.find({ 
+            hostId: venue.hostId, 
+            status: 'Approved' 
+        })
+        .select('url type fileName createdAt')
+        .sort({ createdAt: -1 })
+        .lean();
+
+        res.status(200).json({ success: true, data: { ...venue, media } });
+    } catch (err) { next(err); }
+};
 
 export const getVenueProfile = async (req, res, next) => {
     try {
@@ -40,7 +73,8 @@ export const updateVenueProfile = async (req, res, next) => {
             rules,
             heroImage,
             images,
-            coordinates
+            coordinates,
+            gifts
         } = req.body;
 
 
@@ -58,6 +92,7 @@ export const updateVenueProfile = async (req, res, next) => {
                 heroImage,
                 images,
                 coordinates,
+                gifts,
                 hostId: req.user.id
             },
 
