@@ -1,29 +1,30 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (options) => {
-    // Create reusable transporter object using the default SMTP transport
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD.replace(/\s+/g, '')
-        },
-        connectionTimeout: 10000, // 10 seconds timeout
-        greetingTimeout: 10000,
-        socketTimeout: 15000
-    });
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'Entry Club <onboarding@resend.dev>', // Resend uses this for testing if no domain is verified
+            to: options.email,
+            subject: options.subject,
+            text: options.message,
+        });
 
-    // send mail with defined transport object
-    const message = {
-        from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`, // sender address
-        to: options.email, // list of receivers
-        subject: options.subject, // Subject line
-        text: options.message // plain text body
-    };
+        if (error) {
+            console.error('[RESEND] API Error:', error);
+            throw new Error(error.message);
+        }
 
-    const info = await transporter.sendMail(message);
+        console.log('[RESEND] Email sent successfully:', data.id);
+        return data;
 
-    console.log('Message sent: %s', info.messageId);
+    } catch (err) {
+        console.error('[RESEND] Delivery failed:', err.message);
+        throw err;
+    }
 };
 
 export default sendEmail;
